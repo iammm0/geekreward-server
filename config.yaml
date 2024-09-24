@@ -1,0 +1,17 @@
+runtime: go122
+api_version: go1
+
+handlers:
+  - url: /.*
+    script: _go_app
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: iammm
+  name: geekreward
+
+redis:
+  host: localhost
+  port: 6379
