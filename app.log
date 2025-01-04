@@ -10,3 +10,11 @@
 {"Redis Host":"localhost","Redis Port":6379,"level":"info","msg":"Connecting to Redis","time":"2024-09-13T10:18:59+08:00"}
 {"Database Host":"localhost","Database Name":"geekreward","Database Port":5432,"Database User":"postgres","level":"info","msg":"Connecting to database","time":"2024-09-21T17:13:48+08:00"}
 {"Redis Host":"localhost","Redis Port":6379,"level":"info","msg":"Connecting to Redis","time":"2024-09-21T17:13:48+08:00"}
+{"Database Host":"localhost","Database Name":"geekreward","Database Port":5432,"Database User":"postgres","level":"info","msg":"Connecting to database","time":"2025-01-04T13:08:01+08:00"}
+{"Redis Host":"localhost","Redis Port":6379,"level":"info","msg":"Connecting to Redis","time":"2025-01-04T13:08:01+08:00"}
+{"Database Host":"localhost","Database Name":"geekreward","Database Port":5432,"Database User":"postgres","level":"info","msg":"Connecting to database","time":"2025-01-04T13:23:04+08:00"}
+{"Redis Host":"localhost","Redis Port":6379,"level":"info","msg":"Connecting to Redis","time":"2025-01-04T13:23:04+08:00"}
+{"Database Host":"localhost","Database Name":"geekreward","Database Port":5432,"Database User":"postgres","level":"info","msg":"Connecting to database","time":"2025-01-04T13:34:55+08:00"}
+{"Redis Host":"localhost","Redis Port":6379,"level":"info","msg":"Connecting to Redis","time":"2025-01-04T13:34:55+08:00"}
+{"Database Host":"localhost","Database Name":"geekreward","Database Port":5432,"Database User":"postgres","level":"info","msg":"Connecting to database","time":"2025-01-04T14:14:47+08:00"}
+{"Redis Host":"localhost","Redis Port":6379,"level":"info","msg":"Connecting to Redis","time":"2025-01-04T14:14:47+08:00"}

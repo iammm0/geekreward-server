@@ -5,7 +5,6 @@ import (
 	"GeekReward/inernal/app/middlewares"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"strings"
 )
 
 // SetupRouter 配置路由
@@ -22,14 +21,14 @@ func SetupRouter(
 
 	// 配置CORS中间件，允许来自前端的跨域请求
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3001"}, // 修改为你的前端URL
+		AllowOrigins:     []string{"http://localhost:3000"}, // 修改为你的前端URL
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
 
 	// 设置静态文件路由
-	r.Static("/static", "./frontend/dist/static")
+	// r.Static("/static", "./frontend/dist/static")
 
 	// 注册路由和控制器
 	api := r.Group("/api")
@@ -75,15 +74,15 @@ func SetupRouter(
 	}
 
 	// 处理未匹配的路由，返回前端应用的 index.html
-	r.NoRoute(func(c *gin.Context) {
-		// 如果是请求的静态文件，返回对应文件
-		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
-			c.File("./frontend/dist" + c.Request.URL.Path)
-		} else {
-			// 否则返回 SPA 的 index.html
-			c.File("./frontend/dist/index.html")
-		}
-	})
+	// r.NoRoute(func(c *gin.Context) {
+	// 	// 如果是请求的静态文件，返回对应文件
+	// 	if strings.HasPrefix(c.Request.URL.Path, "/static/") {
+	// 		c.File("./frontend/dist" + c.Request.URL.Path)
+	// 	} else {
+	// 		// 否则返回 SPA 的 index.html
+	// 		c.File("./frontend/dist/index.html")
+	// 	}
+	// })
 
 	return r
 }
