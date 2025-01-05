@@ -3,7 +3,10 @@ package controllers
 import (
 	"GeekReward/inernal/app/models/dtos"
 	"GeekReward/inernal/app/services"
+	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -25,9 +28,20 @@ func (ctl *UserController) GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	user, err := ctl.userService.GetUserByID(userID.(uint))
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	user, err := ctl.userService.GetUserByID(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		}
 		return
 	}
 
@@ -42,15 +56,26 @@ func (ctl *UserController) UpdateUserInfo(c *gin.Context) {
 		return
 	}
 
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	var input dtos.UpdateUserProfile
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
 		return
 	}
 
-	user, err := ctl.userService.UpdateUser(userID.(uint), input)
+	user, err := ctl.userService.UpdateUser(uid, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user info"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user info"})
+		}
 		return
 	}
 

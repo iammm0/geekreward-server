@@ -4,8 +4,8 @@ import (
 	"GeekReward/inernal/app/models/tables"
 	"GeekReward/inernal/app/services"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"net/http"
-	"strconv"
 )
 
 // NotificationController 结构体
@@ -21,9 +21,9 @@ func NewNotificationController(notificationService services.NotificationService)
 // CreateNotification 创建新的通知
 func (ctl *NotificationController) CreateNotification(c *gin.Context) {
 	var input struct {
-		UserID      uint   `json:"user_id" binding:"required"`
-		Title       string `json:"title" binding:"required"`
-		Description string `json:"description" binding:"required"`
+		UserID      uuid.UUID `json:"user_id" binding:"required,uuid"`
+		Title       string    `json:"title" binding:"required"`
+		Description string    `json:"description" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
@@ -46,13 +46,14 @@ func (ctl *NotificationController) CreateNotification(c *gin.Context) {
 
 // GetUserNotifications 获取用户的所有通知
 func (ctl *NotificationController) GetUserNotifications(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 32)
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	notifications, err := ctl.notificationService.GetUserNotifications(uint(userID))
+	notifications, err := ctl.notificationService.GetUserNotifications(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch notifications"})
 		return
@@ -63,13 +64,14 @@ func (ctl *NotificationController) GetUserNotifications(c *gin.Context) {
 
 // MarkNotificationAsRead 标记通知为已读
 func (ctl *NotificationController) MarkNotificationAsRead(c *gin.Context) {
-	notificationID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	notificationIDStr := c.Param("id")
+	notificationID, err := uuid.Parse(notificationIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
 		return
 	}
 
-	if err := ctl.notificationService.MarkNotificationAsRead(uint(notificationID)); err != nil {
+	if err := ctl.notificationService.MarkNotificationAsRead(notificationID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notification as read"})
 		return
 	}
@@ -79,13 +81,14 @@ func (ctl *NotificationController) MarkNotificationAsRead(c *gin.Context) {
 
 // DeleteNotification 删除通知
 func (ctl *NotificationController) DeleteNotification(c *gin.Context) {
-	notificationID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	notificationIDStr := c.Param("id")
+	notificationID, err := uuid.Parse(notificationIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
 		return
 	}
 
-	if err := ctl.notificationService.DeleteNotification(uint(notificationID)); err != nil {
+	if err := ctl.notificationService.DeleteNotification(notificationID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete notification"})
 		return
 	}

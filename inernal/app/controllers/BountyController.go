@@ -5,6 +5,7 @@ import (
 	"GeekReward/inernal/app/services"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"log"
 	"net/http"
@@ -30,15 +31,24 @@ func (ctl *BountyController) CreateBounty(c *gin.Context) {
 		return
 	}
 
-	var input dtos.BountyDTO
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
 		return
 	}
 
-	bounty, err := ctl.bountyService.CreateBounty(input, userID.(uint))
+	var input dtos.BountyDTO
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid input data",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	bounty, err := ctl.bountyService.CreateBounty(input, uid)
 	if err != nil {
-		log.Printf("Error creating bounty: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create bounty"})
 		return
 	}
@@ -62,7 +72,6 @@ func (ctl *BountyController) GetBounties(c *gin.Context) {
 
 	bounties, err := ctl.bountyService.GetBounties(limit, offset)
 	if err != nil {
-		log.Printf("Error fetching bounties: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bounties"})
 		return
 	}
@@ -73,15 +82,19 @@ func (ctl *BountyController) GetBounties(c *gin.Context) {
 // GetBounty 获取指定悬赏令的处理函数
 func (ctl *BountyController) GetBounty(c *gin.Context) {
 	idParam := c.Param("bounty_id")
-	id, err := strconv.Atoi(idParam)
-	if err != nil || id < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
-	bounty, err := ctl.bountyService.GetBounty(uint(id))
+	bounty, err := ctl.bountyService.GetBounty(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Bounty not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bounty not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bounty"})
+		}
 		return
 	}
 
@@ -90,26 +103,36 @@ func (ctl *BountyController) GetBounty(c *gin.Context) {
 
 // UpdateBounty 更新悬赏令处理函数
 func (ctl *BountyController) UpdateBounty(c *gin.Context) {
-	_, exists := c.Get("user_id")
+	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
+	// 断言 userID 为 uuid.UUID 类型
+	_, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	idParam := c.Param("bounty_id")
-	id, err := strconv.ParseUint(idParam, 10, 32)
-	if err != nil || id < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
 	var input dtos.BountyDTO
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid input data",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	bounty, err := ctl.bountyService.UpdateBounty(uint(id), input)
+	bounty, err := ctl.bountyService.UpdateBounty(id, input)
 	if err != nil {
 		log.Printf("Error updating bounty: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bounty"})
@@ -122,16 +145,20 @@ func (ctl *BountyController) UpdateBounty(c *gin.Context) {
 // DeleteBounty 删除悬赏令处理函数
 func (ctl *BountyController) DeleteBounty(c *gin.Context) {
 	idParam := c.Param("bounty_id")
-	id, err := strconv.ParseUint(idParam, 10, 32)
-	if err != nil || id < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
-	err = ctl.bountyService.DeleteBounty(uint(id))
+	err = ctl.bountyService.DeleteBounty(id)
 	if err != nil {
-		log.Printf("Error deleting bounty: %v", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Bounty not found"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bounty not found"})
+		} else {
+			log.Printf("Error deleting bounty: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bounty"})
+		}
 		return
 	}
 
@@ -140,15 +167,27 @@ func (ctl *BountyController) DeleteBounty(c *gin.Context) {
 
 // LikeBounty 点赞悬赏令处理函数
 func (ctl *BountyController) LikeBounty(c *gin.Context) {
-	userID := c.MustGet("user_id").(uint)
-	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.ParseUint(bountyIDStr, 10, 32)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	if err := ctl.bountyService.LikeBounty(userID, uint(bountyID)); err != nil {
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		return
+	}
+
+	if err := ctl.bountyService.LikeBounty(uid, bountyID); err != nil {
 		log.Printf("Error liking bounty: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to like bounty"})
 		return
@@ -159,23 +198,39 @@ func (ctl *BountyController) LikeBounty(c *gin.Context) {
 
 // CommentOnBounty 评论悬赏令处理函数
 func (ctl *BountyController) CommentOnBounty(c *gin.Context) {
-	userID := c.MustGet("user_id").(uint)
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.ParseUint(bountyIDStr, 10, 32)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
 	var input struct {
 		Content string `json:"content" binding:"required"`
 	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid input data",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	comment, err := ctl.bountyService.CommentOnBounty(userID, uint(bountyID), input.Content)
+	comment, err := ctl.bountyService.CommentOnBounty(uid, bountyID, input.Content)
 	if err != nil {
 		log.Printf("Error commenting on bounty: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to comment on bounty"})
@@ -186,27 +241,42 @@ func (ctl *BountyController) CommentOnBounty(c *gin.Context) {
 }
 
 // RateBounty 评分悬赏令处理函数
-// RateBounty 处理用户评分悬赏令的请求
 func (ctl *BountyController) RateBounty(c *gin.Context) {
-	userID := c.MustGet("user_id").(uint) // 从上下文中获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.ParseUint(bountyIDStr, 10, 32)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
 	var input struct {
 		Score float64 `json:"score" binding:"required,min=1,max=5"` // 假设评分在1到5之间
 	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid input data",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	// 调用服务层方法来更新或创建评分记录
-	if err := ctl.bountyService.RateBounty(userID, uint(bountyID), input.Score); err != nil {
-		log.Printf("Error rating bounty for user %d and bounty %d: %v", userID, bountyID, err)
+	if err := ctl.bountyService.RateBounty(uid, bountyID, input.Score); err != nil {
+		log.Printf("Error rating bounty for user %s and bounty %s: %v", uid, bountyID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rate bounty"})
 		return
 	}
@@ -218,58 +288,13 @@ func (ctl *BountyController) RateBounty(c *gin.Context) {
 // GetBountyComments 获取悬赏令评论处理函数
 func (ctl *BountyController) GetBountyComments(c *gin.Context) {
 	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.ParseUint(bountyIDStr, 10, 32)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
-		return
-	}
-
-	comments, err := ctl.bountyService.GetComments(uint(bountyID))
+	bountyID, err := uuid.Parse(bountyIDStr)
 	if err != nil {
-		log.Printf("Error fetching bounty comments: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bounty comments"})
-		return
-	}
-
-	c.JSON(http.StatusOK, comments)
-}
-
-// GetUserBountyInteraction 获取用户悬赏令互动信息处理函数
-func (ctl *BountyController) GetUserBountyInteraction(c *gin.Context) {
-	userID := c.MustGet("user_id").(uint)
-	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.ParseUint(bountyIDStr, 10, 32)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
-		return
-	}
-
-	interaction, err := ctl.bountyService.GetUserBountyInteraction(userID, uint(bountyID))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 如果是记录未找到错误，返回404状态码
-			c.JSON(http.StatusNotFound, gin.H{"error": "No interaction found for this bounty"})
-		} else {
-			// 否则返回500内部服务器错误
-			log.Printf("Error fetching user bounty interaction for user %d and bounty %d: %v", userID, bountyID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch interaction"})
-		}
-		return
-	}
-
-	c.JSON(http.StatusOK, interaction)
-}
-
-// GetMilestonesByBountyID 获取指定悬赏令的里程碑
-func (ctl *BountyController) GetMilestonesByBountyID(c *gin.Context) {
-	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.Atoi(bountyIDStr)
-	if err != nil || bountyID < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
-	milestones, err := ctl.milestoneService.GetMilestonesByBountyID(uint(bountyID))
+	milestones, err := ctl.milestoneService.GetMilestonesByBountyID(bountyID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch milestones"})
 		return
@@ -286,7 +311,14 @@ func (ctl *BountyController) GetBountiesByUser(c *gin.Context) {
 		return
 	}
 
-	bounties, err := ctl.bountyService.GetBountiesByUserID(userID.(uint))
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	bounties, err := ctl.bountyService.GetBountiesByUserID(uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bounties"})
 		return
@@ -303,7 +335,14 @@ func (ctl *BountyController) GetReceivedBounties(c *gin.Context) {
 		return
 	}
 
-	bounties, err := ctl.bountyService.GetReceivedBounties(userID.(uint))
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	bounties, err := ctl.bountyService.GetReceivedBounties(uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch received bounties"})
 		return
@@ -312,19 +351,91 @@ func (ctl *BountyController) GetReceivedBounties(c *gin.Context) {
 	c.JSON(http.StatusOK, bounties)
 }
 
+// UnlikeBounty 取消点赞悬赏令处理函数
 func (ctl *BountyController) UnlikeBounty(c *gin.Context) {
-	userID := c.MustGet("user_id").(uint)
-	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.ParseUint(bountyIDStr, 10, 32)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	if err := ctl.bountyService.UnlikeBounty(userID, uint(bountyID)); err != nil {
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		return
+	}
+
+	if err := ctl.bountyService.UnlikeBounty(uid, bountyID); err != nil {
+		// 如果服务层返回具体的错误消息，直接返回该消息
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "取消点赞成功"})
+}
+
+// GetUserBountyInteraction 获取用户在指定悬赏令上的互动信息
+func (ctl *BountyController) GetUserBountyInteraction(c *gin.Context) {
+	// 从上下文中获取当前用户的 user_id
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// 断言 userID 为 uuid.UUID 类型
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	// 获取 bounty_id 路径参数并解析为 uuid.UUID
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		return
+	}
+
+	// 调用服务层方法获取互动信息
+	interaction, err := ctl.bountyService.GetUserBountyInteraction(uid, bountyID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Interaction not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get interaction"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, interaction)
+}
+
+// SettleBountyAccounts 结算悬赏令账户
+func (ctl *BountyController) SettleBountyAccounts(c *gin.Context) {
+	// 获取悬赏令ID从URL参数
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		return
+	}
+
+	// 调用服务层进行结算
+	err = ctl.bountyService.SettleBountyAccounts(bountyID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Bounty accounts settled successfully"})
 }

@@ -3,84 +3,88 @@ package repositories
 import (
 	"GeekReward/inernal/app/models/tables"
 	"errors"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+// BountyRepository 定义关于 Bounty 的数据访问接口
 type BountyRepository interface {
-	Create(bounty *tables.Bounty) error
-	FindAll(limit, offset int) ([]tables.Bounty, error)
-	FindByID(id uint) (*tables.Bounty, error)
-	Update(bounty *tables.Bounty) error
-	Delete(bounty *tables.Bounty) error
-	IncrementField(bountyID uint, fieldName string) error
-	FindByUserID(userID uint) ([]tables.Bounty, error)
-	FindReceivedByUserID(userID uint) ([]tables.Bounty, error)
-	GetCommentsByBountyID(bountyID uint) ([]tables.Comment, error)
+	CreateBounty(bounty *tables.Bounty) error
+	FindAllBounties(limit, offset int) ([]tables.Bounty, error)
+	FindBountyByID(id uuid.UUID) (*tables.Bounty, error)
+	UpdateBounty(bounty *tables.Bounty) error
+	DeleteBounty(bounty *tables.Bounty) error
+	IncrementField(bountyID uuid.UUID, fieldName string) error
+	FindByUserID(userID uuid.UUID) ([]tables.Bounty, error)
+	FindReceivedByUserID(userID uuid.UUID) ([]tables.Bounty, error)
+	GetCommentsByBountyID(bountyID uuid.UUID) ([]tables.Comment, error)
 	AddLike(like *tables.Like) error
 	AddComment(comment *tables.Comment) error
 	AddRating(rating *tables.Rating) error
-	FindByIDWithUsers(id uint) (*tables.Bounty, error)
-	IsBountyLikedByUser(userID, bountyID uint) (bool, error)
-	GetUserBountyRating(userID, bountyID uint) (float64, error)
-	RemoveLike(userID, bountyID uint) error
-	DecrementField(bountyID uint, field string) error
+	FindByIDWithUsers(id uuid.UUID) (*tables.Bounty, error)
+	IsBountyLikedByUser(userID, bountyID uuid.UUID) (bool, error)
+	GetUserBountyRating(userID, bountyID uuid.UUID) (float64, error)
+	RemoveLike(userID, bountyID uuid.UUID) error
+	DecrementField(bountyID uuid.UUID, field string) error
 	AddOrUpdateRating(rating *tables.Rating) error
-	GetAllRatingsForBounty(bountyID uint) ([]float64, error)
-	GetRatingByUserAndBounty(userID, bountyID uint, rating *tables.Rating) error
+	GetAllRatingsForBounty(bountyID uuid.UUID) ([]float64, error)
+	GetRatingByUserAndBounty(userID, bountyID uuid.UUID, rating *tables.Rating) error
 	UpdateRating(rating *tables.Rating) error
-	GetRatingsByBountyID(bountyID uint, ratings *[]tables.Rating) error
-	UpdateBountyRating(bountyID uint, avgScore float64, reviewCount int) error
+	GetRatingsByBountyID(bountyID uuid.UUID, ratings *[]tables.Rating) error
+	UpdateBountyRating(bountyID uuid.UUID, avgScore float64, reviewCount int) error
 }
 
+// 定义 bountyRepository 对象并介入全局变量 db，在接下来的数据操作方法中实现对数据库操作主体的引用
 type bountyRepository struct {
 	db *gorm.DB
 }
 
+// NewBountyRepository 实现创建 bountyRepository 对象的方法，返回一个基础接口类型为 BountyRepository 的 bountyRepository的对象
 func NewBountyRepository(db *gorm.DB) BountyRepository {
 	return &bountyRepository{db: db}
 }
 
-func (r *bountyRepository) Create(bounty *tables.Bounty) error {
+func (r *bountyRepository) CreateBounty(bounty *tables.Bounty) error {
 	return r.db.Create(bounty).Error
 }
 
-func (r *bountyRepository) FindAll(limit, offset int) ([]tables.Bounty, error) {
+func (r *bountyRepository) FindAllBounties(limit, offset int) ([]tables.Bounty, error) {
 	var bounties []tables.Bounty
 	err := r.db.Limit(limit).Offset(offset).Find(&bounties).Error
 	return bounties, err
 }
 
-func (r *bountyRepository) FindByID(id uint) (*tables.Bounty, error) {
+func (r *bountyRepository) FindBountyByID(id uuid.UUID) (*tables.Bounty, error) {
 	var bounty tables.Bounty
 	err := r.db.First(&bounty, id).Error
 	return &bounty, err
 }
 
-func (r *bountyRepository) Update(bounty *tables.Bounty) error {
+func (r *bountyRepository) UpdateBounty(bounty *tables.Bounty) error {
 	return r.db.Save(bounty).Error
 }
 
-func (r *bountyRepository) Delete(bounty *tables.Bounty) error {
+func (r *bountyRepository) DeleteBounty(bounty *tables.Bounty) error {
 	return r.db.Delete(bounty).Error
 }
 
-func (r *bountyRepository) IncrementField(bountyID uint, fieldName string) error {
+func (r *bountyRepository) IncrementField(bountyID uuid.UUID, fieldName string) error {
 	return r.db.Model(&tables.Bounty{}).Where("id = ?", bountyID).Update(fieldName, gorm.Expr(fieldName+" + ?", 1)).Error
 }
 
-func (r *bountyRepository) FindByUserID(userID uint) ([]tables.Bounty, error) {
+func (r *bountyRepository) FindByUserID(userID uuid.UUID) ([]tables.Bounty, error) {
 	var bounties []tables.Bounty
 	err := r.db.Where("user_id = ?", userID).Find(&bounties).Error
 	return bounties, err
 }
 
-func (r *bountyRepository) FindReceivedByUserID(userID uint) ([]tables.Bounty, error) {
+func (r *bountyRepository) FindReceivedByUserID(userID uuid.UUID) ([]tables.Bounty, error) {
 	var bounties []tables.Bounty
 	err := r.db.Where("receiver_id = ?", userID).Find(&bounties).Error
 	return bounties, err
 }
 
-func (r *bountyRepository) GetCommentsByBountyID(bountyID uint) ([]tables.Comment, error) {
+func (r *bountyRepository) GetCommentsByBountyID(bountyID uuid.UUID) ([]tables.Comment, error) {
 	var comments []tables.Comment
 	err := r.db.Where("bounty_id = ?", bountyID).Order("created_at desc").Find(&comments).Error
 	return comments, err
@@ -98,13 +102,13 @@ func (r *bountyRepository) AddRating(rating *tables.Rating) error {
 	return r.db.Create(rating).Error
 }
 
-func (r *bountyRepository) FindByIDWithUsers(id uint) (*tables.Bounty, error) {
+func (r *bountyRepository) FindByIDWithUsers(id uuid.UUID) (*tables.Bounty, error) {
 	var bounty tables.Bounty
 	err := r.db.Preload("User").Preload("Receiver").First(&bounty, id).Error
 	return &bounty, err
 }
 
-func (r *bountyRepository) IsBountyLikedByUser(userID, bountyID uint) (bool, error) {
+func (r *bountyRepository) IsBountyLikedByUser(userID, bountyID uuid.UUID) (bool, error) {
 	var count int64
 	err := r.db.Model(&tables.Like{}).Where("user_id = ? AND bounty_id = ?", userID, bountyID).Count(&count).Error
 	if err != nil {
@@ -113,7 +117,7 @@ func (r *bountyRepository) IsBountyLikedByUser(userID, bountyID uint) (bool, err
 	return count > 0, nil
 }
 
-func (r *bountyRepository) GetUserBountyRating(userID, bountyID uint) (float64, error) {
+func (r *bountyRepository) GetUserBountyRating(userID, bountyID uuid.UUID) (float64, error) {
 	var rating tables.Rating
 	err := r.db.Where("user_id = ? AND bounty_id = ?", userID, bountyID).First(&rating).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -123,11 +127,11 @@ func (r *bountyRepository) GetUserBountyRating(userID, bountyID uint) (float64, 
 	return rating.Score, err
 }
 
-func (r *bountyRepository) RemoveLike(userID, bountyID uint) error {
+func (r *bountyRepository) RemoveLike(userID, bountyID uuid.UUID) error {
 	return r.db.Where("user_id = ? AND bounty_id = ?", userID, bountyID).Delete(&tables.Like{}).Error
 }
 
-func (r *bountyRepository) DecrementField(bountyID uint, field string) error {
+func (r *bountyRepository) DecrementField(bountyID uuid.UUID, field string) error {
 	return r.db.Model(&tables.Bounty{}).Where("id = ?", bountyID).Update(field, gorm.Expr(field+" - ?", 1)).Error
 }
 
@@ -138,13 +142,13 @@ func (r *bountyRepository) AddOrUpdateRating(rating *tables.Rating) error {
 		FirstOrCreate(rating).Error
 }
 
-func (r *bountyRepository) GetAllRatingsForBounty(bountyID uint) ([]float64, error) {
+func (r *bountyRepository) GetAllRatingsForBounty(bountyID uuid.UUID) ([]float64, error) {
 	var scores []float64
 	err := r.db.Model(&tables.Rating{}).Where("bounty_id = ?", bountyID).Pluck("score", &scores).Error
 	return scores, err
 }
 
-func (r *bountyRepository) GetRatingByUserAndBounty(userID, bountyID uint, rating *tables.Rating) error {
+func (r *bountyRepository) GetRatingByUserAndBounty(userID, bountyID uuid.UUID, rating *tables.Rating) error {
 	return r.db.Where("user_id = ? AND bounty_id = ?", userID, bountyID).First(rating).Error
 }
 
@@ -152,11 +156,11 @@ func (r *bountyRepository) UpdateRating(rating *tables.Rating) error {
 	return r.db.Save(rating).Error
 }
 
-func (r *bountyRepository) GetRatingsByBountyID(bountyID uint, ratings *[]tables.Rating) error {
+func (r *bountyRepository) GetRatingsByBountyID(bountyID uuid.UUID, ratings *[]tables.Rating) error {
 	return r.db.Where("bounty_id = ?", bountyID).Find(ratings).Error
 }
 
-func (r *bountyRepository) UpdateBountyRating(bountyID uint, avgScore float64, reviewCount int) error {
+func (r *bountyRepository) UpdateBountyRating(bountyID uuid.UUID, avgScore float64, reviewCount int) error {
 	return r.db.Model(&tables.Bounty{}).Where("id = ?", bountyID).Updates(map[string]interface{}{
 		"average_rating": avgScore,
 		"review_count":   reviewCount,

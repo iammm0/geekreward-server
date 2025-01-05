@@ -1,16 +1,15 @@
 package tables
 
 import (
-	"GeekReward/inernal/app/models/common"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
-	"gorm.io/gorm"
 	"time"
 )
 
 type Bounty struct {
-	gorm.Model
-	UserID     common.UserID  `gorm:"not null;index"`
-	ReceiverID *common.UserID `gorm:"index"`
+	BaseModel
+	UserID     uuid.UUID  `gorm:"type:uuid;not null;index"`
+	ReceiverID *uuid.UUID `gorm:"type:uuid;index"`
 
 	Title           string         `gorm:"not null"`
 	Description     string         `gorm:"not null"`
@@ -53,9 +52,9 @@ type Bounty struct {
 	ViewCount     int `gorm:"default:0"`
 	AverageRating float64
 
-	Milestones   []Milestone   `gorm:"foreignKey:BountyID"`
-	Comments     []Comment     `gorm:"foreignKey:BountyID"`
-	Applications []Application `gorm:"foreignKey:BountyID"`
-	Likes        []Like        `gorm:"foreignKey:BountyID"`
-	Ratings      []Rating      `gorm:"foreignKey:BountyID"`
+	Milestones   []Milestone   `gorm:"foreignKey:BountyID;references:ID"`
+	Comments     []Comment     `gorm:"foreignKey:BountyID;references:ID"`
+	Applications []Application `gorm:"foreignKey:BountyID;references:ID"`
+	Likes        []Like        `gorm:"foreignKey:BountyID;references:ID"`
+	Ratings      []Rating      `gorm:"foreignKey:BountyID;references:ID"`
 }

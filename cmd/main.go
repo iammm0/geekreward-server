@@ -5,7 +5,7 @@ import (
 	"GeekReward/inernal/app/repositories"
 	"GeekReward/inernal/app/routes"
 	"GeekReward/inernal/app/services"
-	"GeekReward/inernal/app/validators"
+	utils "GeekReward/inernal/app/validators"
 	"GeekReward/pkg/database"
 	"GeekReward/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -13,8 +13,6 @@ import (
 	"github.com/spf13/viper"
 	"log"
 )
-
-var validator *validators.Validator
 
 func main() {
 	// 设置 Gin 为发布模式
@@ -65,15 +63,17 @@ func main() {
 	milestoneRepo := repositories.NewMilestoneRepository(database.DB)
 	notificationRepo := repositories.NewNotificationRepository(database.DB)
 	applicationRepo := repositories.NewApplicationRepository(database.DB)
+	invitationRepo := repositories.NewInvitationRepository(database.DB)
 
 	// 初始化服务
 	authService := services.NewAuthService(userRepo)
-	bountyService := services.NewBountyService(bountyRepo)
-	geekService := services.NewGeekService(geekRepo)
+	bountyService := services.NewBountyService(bountyRepo, applicationRepo, notificationRepo)
+	geekService := services.NewGeekService(geekRepo, invitationRepo)
 	userService := services.NewUserService(userRepo)
-	milestoneService := services.NewMilestoneService(milestoneRepo)
+	milestoneService := services.NewMilestoneService(milestoneRepo, bountyRepo)
 	notificationService := services.NewNotificationService(notificationRepo)
-	applicationService := services.NewApplicationService(applicationRepo)
+	applicationService := services.NewApplicationService(applicationRepo, bountyRepo)
+	invitationService := services.NewInvitationService(invitationRepo, userRepo)
 
 	// 初始化控制器
 	authController := controllers.NewAuthController(authService)
@@ -82,6 +82,14 @@ func main() {
 	userController := controllers.NewUserController(userService)
 	notificationController := controllers.NewNotificationController(notificationService)
 	applicationController := controllers.NewApplicationController(applicationService)
+	milestoneController := controllers.NewMilestoneController(milestoneService)
+	invitationController := controllers.NewInvitationController(invitationService)
+
+	// 初始化验证器
+	validatorInstance, err := utils.NewValidator()
+	if err != nil {
+		logger.ErrorLogger.Fatalf("Failed to initialize validator: %v", err)
+	}
 
 	// 设置路由
 	r := routes.SetupRouter(
@@ -91,14 +99,13 @@ func main() {
 		userController,
 		notificationController,
 		applicationController,
+		milestoneController,
+		invitationController,
 	)
-
-	// 初始化全局验证器
-	validator = validators.NewValidator()
 
 	// 传递给需要的组件或通过中间件设置到上下文中
 	r.Use(func(c *gin.Context) {
-		c.Set("validator", validator)
+		c.Set("validator", validatorInstance)
 		c.Next()
 	})
 

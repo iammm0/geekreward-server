@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"time"
 )
 
@@ -10,10 +11,10 @@ import (
 var jwtSecret = []byte("ToOrNotToGo,ItIsAQuestion.") // 替换为你自己的密钥
 
 // GenerateJWT 生成一个新的JWT，用于用户认证
-func GenerateJWT(userID uint) (string, error) {
+func GenerateJWT(userID uuid.UUID) (string, error) {
 	// 创建一个新的JWT令牌，使用HS256签名方法
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": userID,                                // 在令牌中存储用户ID
+		"user_id": userID.String(),                       // 在令牌中存储用户ID为字符串
 		"exp":     time.Now().Add(time.Hour * 72).Unix(), // 设置令牌的过期时间为72小时后
 	})
 
@@ -27,9 +28,10 @@ func GenerateJWT(userID uint) (string, error) {
 }
 
 // ValidateJWT 验证JWT，并返回令牌中的用户ID
-func ValidateJWT(tokenString string) (uint, error) {
+func ValidateJWT(tokenString string) (uuid.UUID, error) {
 	// 解析并验证令牌
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// 确认签名方法是否为HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
@@ -37,17 +39,21 @@ func ValidateJWT(tokenString string) (uint, error) {
 	})
 
 	if err != nil {
-		return 0, err
+		return uuid.Nil, err
 	}
 
 	// 提取令牌中的用户ID
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userID, ok := claims["user_id"].(float64)
+		userIDStr, ok := claims["user_id"].(string)
 		if !ok {
-			return 0, errors.New("invalid token claims")
+			return uuid.Nil, errors.New("invalid token claims")
 		}
-		return uint(userID), nil
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		return userID, nil
 	}
 
-	return 0, errors.New("invalid token")
+	return uuid.Nil, errors.New("invalid token")
 }

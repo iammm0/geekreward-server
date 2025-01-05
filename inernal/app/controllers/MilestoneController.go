@@ -4,11 +4,11 @@ import (
 	"GeekReward/inernal/app/models/dtos"
 	"GeekReward/inernal/app/services"
 	"github.com/gin-gonic/gin"
-	"log"
+	"github.com/google/uuid"
 	"net/http"
-	"strconv"
 )
 
+// MilestoneController 结构体
 type MilestoneController struct {
 	milestoneService services.MilestoneService
 }
@@ -17,60 +17,41 @@ func NewMilestoneController(milestoneService services.MilestoneService) *Milesto
 	return &MilestoneController{milestoneService: milestoneService}
 }
 
-// GetMilestonesByBountyID 获取指定悬赏令的里程碑
-func (ctl *MilestoneController) GetMilestonesByBountyID(c *gin.Context) {
-	bountyIDStr := c.Param("bounty_id")
-	bountyID, err := strconv.Atoi(bountyIDStr)
-	if err != nil || bountyID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
-		return
-	}
-
-	milestones, err := ctl.milestoneService.GetMilestonesByBountyID(uint(bountyID))
-	if err != nil {
-		log.Printf("Error fetching milestones: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch milestones"})
-		return
-	}
-
-	c.JSON(http.StatusOK, milestones)
-}
-
 // CreateMilestone 创建新的里程碑
 func (ctl *MilestoneController) CreateMilestone(c *gin.Context) {
 	var input dtos.MilestoneDTO
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	if err := ctl.milestoneService.CreateMilestone(&input); err != nil {
-		log.Printf("Error creating milestone: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create milestone"})
+	milestone, err := ctl.milestoneService.CreateMilestone(input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Milestone created successfully"})
+	c.JSON(http.StatusCreated, milestone)
 }
 
 // UpdateMilestone 更新里程碑
 func (ctl *MilestoneController) UpdateMilestone(c *gin.Context) {
 	milestoneIDStr := c.Param("milestone_id")
-	milestoneID, err := strconv.Atoi(milestoneIDStr)
-	if err != nil || milestoneID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Milestone ID"})
+	milestoneID, err := uuid.Parse(milestoneIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid milestone ID"})
 		return
 	}
 
-	var input dtos.MilestoneDTO
+	var input dtos.MilestoneUpdateDTO
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	if err := ctl.milestoneService.UpdateMilestone(uint(milestoneID), &input); err != nil {
-		log.Printf("Error updating milestone: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update milestone"})
+	err = ctl.milestoneService.UpdateMilestone(milestoneID, input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -80,17 +61,77 @@ func (ctl *MilestoneController) UpdateMilestone(c *gin.Context) {
 // DeleteMilestone 删除里程碑
 func (ctl *MilestoneController) DeleteMilestone(c *gin.Context) {
 	milestoneIDStr := c.Param("milestone_id")
-	milestoneID, err := strconv.Atoi(milestoneIDStr)
-	if err != nil || milestoneID < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Milestone ID"})
+	milestoneID, err := uuid.Parse(milestoneIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid milestone ID"})
 		return
 	}
 
-	if err := ctl.milestoneService.DeleteMilestone(uint(milestoneID)); err != nil {
-		log.Printf("Error deleting milestone: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete milestone"})
+	err = ctl.milestoneService.DeleteMilestone(milestoneID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Milestone deleted successfully"})
+}
+
+// GetMilestonesByBountyID 获取指定悬赏令的所有里程碑
+func (ctl *MilestoneController) GetMilestonesByBountyID(c *gin.Context) {
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		return
+	}
+
+	milestones, err := ctl.milestoneService.GetMilestonesByBountyID(bountyID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, milestones)
+}
+
+// UpdateMilestoneByReceiver 悬赏零接收者更新里程碑
+func (ctl *MilestoneController) UpdateMilestoneByReceiver(c *gin.Context) {
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		return
+	}
+
+	milestoneIDStr := c.Param("milestone_id")
+	milestoneID, err := uuid.Parse(milestoneIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid milestone ID"})
+		return
+	}
+
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var input dtos.MilestoneUpdateDTO
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	err = ctl.milestoneService.UpdateMilestoneByReceiver(bountyID, milestoneID, userID, input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Milestone updated successfully"})
 }

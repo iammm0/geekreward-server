@@ -2,15 +2,15 @@ package repositories
 
 import (
 	"GeekReward/inernal/app/models/tables"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-// UserRepository 定义用户存储库接口
 type UserRepository interface {
 	Create(user *tables.User) error
 	FindByEmail(email string) (*tables.User, error)
 	FindByUsername(username string) (*tables.User, error)
-	FindByID(id uint) (*tables.User, error)
+	FindByID(id uuid.UUID) (*tables.User, error)
 	Update(user *tables.User) error
 }
 
@@ -38,9 +38,9 @@ func (r *userRepository) FindByUsername(username string) (*tables.User, error) {
 	return &user, err
 }
 
-func (r *userRepository) FindByID(id uint) (*tables.User, error) {
+func (r *userRepository) FindByID(id uuid.UUID) (*tables.User, error) {
 	var user tables.User
-	err := r.db.First(&user, id).Error
+	err := r.db.First(&user, "id = ?", id).Error
 	return &user, err
 }
 

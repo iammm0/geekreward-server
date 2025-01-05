@@ -3,13 +3,14 @@ package services
 import (
 	"GeekReward/inernal/app/models/tables"
 	"GeekReward/inernal/app/repositories"
+	"github.com/google/uuid"
 )
 
 type NotificationService interface {
 	CreateNotification(notification *tables.Notification) error
-	GetUserNotifications(userID uint) ([]tables.Notification, error)
-	MarkNotificationAsRead(notificationID uint) error
-	DeleteNotification(notificationID uint) error
+	GetUserNotifications(userID uuid.UUID) ([]tables.Notification, error)
+	MarkNotificationAsRead(notificationID uuid.UUID) error
+	DeleteNotification(notificationID uuid.UUID) error
 }
 
 type notificationService struct {
@@ -24,14 +25,14 @@ func (s *notificationService) CreateNotification(notification *tables.Notificati
 	return s.notificationRepo.Create(notification)
 }
 
-func (s *notificationService) GetUserNotifications(userID uint) ([]tables.Notification, error) {
+func (s *notificationService) GetUserNotifications(userID uuid.UUID) ([]tables.Notification, error) {
 	return s.notificationRepo.FindByUserID(userID)
 }
 
-func (s *notificationService) MarkNotificationAsRead(notificationID uint) error {
+func (s *notificationService) MarkNotificationAsRead(notificationID uuid.UUID) error {
 	return s.notificationRepo.MarkAsRead(notificationID)
 }
 
-func (s *notificationService) DeleteNotification(notificationID uint) error {
+func (s *notificationService) DeleteNotification(notificationID uuid.UUID) error {
 	return s.notificationRepo.Delete(notificationID)
 }

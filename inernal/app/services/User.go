@@ -4,12 +4,13 @@ import (
 	"GeekReward/inernal/app/models/dtos"
 	"GeekReward/inernal/app/models/tables"
 	"GeekReward/inernal/app/repositories"
+	"github.com/google/uuid"
 	"time"
 )
 
 type UserService interface {
-	GetUserByID(id uint) (*tables.User, error)
-	UpdateUser(id uint, input dtos.UpdateUserProfile) (*tables.User, error)
+	GetUserByID(id uuid.UUID) (*tables.User, error)
+	UpdateUser(id uuid.UUID, input dtos.UpdateUserProfile) (*tables.User, error)
 }
 
 type userService struct {
@@ -20,11 +21,11 @@ func NewUserService(userRepo repositories.UserRepository) UserService {
 	return &userService{userRepo: userRepo}
 }
 
-func (s *userService) GetUserByID(id uint) (*tables.User, error) {
+func (s *userService) GetUserByID(id uuid.UUID) (*tables.User, error) {
 	return s.userRepo.FindByID(id)
 }
 
-func (s *userService) UpdateUser(id uint, input dtos.UpdateUserProfile) (*tables.User, error) {
+func (s *userService) UpdateUser(id uuid.UUID, input dtos.UpdateUserProfile) (*tables.User, error) {
 	user, err := s.userRepo.FindByID(id)
 	if err != nil {
 		return nil, err

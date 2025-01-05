@@ -1,42 +1,58 @@
 package services
 
 import (
-	"GeekReward/inernal/app/models/common"
 	"GeekReward/inernal/app/models/dtos"
 	"GeekReward/inernal/app/models/tables"
 	"GeekReward/inernal/app/repositories"
 	"errors"
+	"fmt"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"log"
 	"time"
 )
 
+// BountyService 定义悬赏令相关的服务接口
 type BountyService interface {
-	CreateBounty(input dtos.BountyDTO, userID uint) (*tables.Bounty, error)
+	CreateBounty(input dtos.BountyDTO, userID uuid.UUID) (*tables.Bounty, error)
 	GetBounties(limit, offset int) ([]tables.Bounty, error)
-	GetBounty(id uint) (*tables.Bounty, error)
-	UpdateBounty(id uint, input dtos.BountyDTO) (*tables.Bounty, error)
-	DeleteBounty(id uint) error
-	LikeBounty(userID, bountyID uint) error
-	CommentOnBounty(userID, bountyID uint, content string) (*tables.Comment, error)
-	RateBounty(userID, bountyID uint, score float64) error
-	IncrementViewCount(bountyID uint) error
-	GetBountiesByUserID(userID uint) ([]tables.Bounty, error)
-	GetReceivedBounties(userID uint) ([]tables.Bounty, error)
-	GetComments(bountyID uint) ([]tables.Comment, error)
-	GetUserBountyInteraction(userID, bountyID uint) (*dtos.BountyInteraction, error)
-	UnlikeBounty(userID, bountyID uint) error
+	GetBounty(id uuid.UUID) (*tables.Bounty, error)
+	UpdateBounty(id uuid.UUID, input dtos.BountyDTO) (*tables.Bounty, error)
+	DeleteBounty(id uuid.UUID) error
+	LikeBounty(userID, bountyID uuid.UUID) error
+	UnlikeBounty(userID, bountyID uuid.UUID) error
+	CommentOnBounty(userID, bountyID uuid.UUID, content string) (*tables.Comment, error)
+	RateBounty(userID, bountyID uuid.UUID, score float64) error
+	IncrementViewCount(bountyID uuid.UUID) error
+	GetBountiesByUserID(userID uuid.UUID) ([]tables.Bounty, error)
+	GetReceivedBounties(userID uuid.UUID) ([]tables.Bounty, error)
+	GetComments(bountyID uuid.UUID) ([]tables.Comment, error)
+	GetUserBountyInteraction(userID, bountyID uuid.UUID) (*dtos.BountyInteraction, error)
+	SettleBountyAccounts(bountyID uuid.UUID) error
 }
 
+// bountyService 是 BountyService 接口的具体实现
 type bountyService struct {
-	bountyRepo repositories.BountyRepository
+	bountyRepo       repositories.BountyRepository
+	applicationRepo  repositories.ApplicationRepository
+	notificationRepo repositories.NotificationRepository
 }
 
-func NewBountyService(bountyRepo repositories.BountyRepository) BountyService {
-	return &bountyService{bountyRepo: bountyRepo}
+// NewBountyService 创建一个新的 BountyService 实例
+func NewBountyService(
+	bountyRepo repositories.BountyRepository,
+	applicationRepo repositories.ApplicationRepository,
+	notificationRepo repositories.NotificationRepository,
+) BountyService {
+	return &bountyService{
+		bountyRepo:       bountyRepo,
+		applicationRepo:  applicationRepo,
+		notificationRepo: notificationRepo,
+	}
 }
 
-func (s *bountyService) CreateBounty(input dtos.BountyDTO, userID uint) (*tables.Bounty, error) {
+// CreateBounty 创建一个新的悬赏令
+func (s *bountyService) CreateBounty(input dtos.BountyDTO, userID uuid.UUID) (*tables.Bounty, error) {
 	deadline, err := time.Parse("2006-01-02", input.Deadline)
 	if err != nil {
 		log.Printf("Error parsing deadline: %v", err)
@@ -75,43 +91,77 @@ func (s *bountyService) CreateBounty(input dtos.BountyDTO, userID uint) (*tables
 		NDARequired:             input.NdaRequired,
 		AcceptanceCriteria:      input.AcceptanceCriteria,
 		PaymentMethod:           input.PaymentMethod,
-		UserID:                  common.UserID(userID),
+		UserID:                  userID,
 	}
-	if err := s.bountyRepo.Create(bounty); err != nil {
+
+	if err := s.bountyRepo.CreateBounty(bounty); err != nil {
 		return nil, err
 	}
 	return bounty, nil
 }
 
+// GetBounties 获取所有悬赏令，支持分页
 func (s *bountyService) GetBounties(limit, offset int) ([]tables.Bounty, error) {
-	return s.bountyRepo.FindAll(limit, offset)
+	return s.bountyRepo.FindAllBounties(limit, offset)
 }
 
-func (s *bountyService) GetBounty(id uint) (*tables.Bounty, error) {
-	return s.bountyRepo.FindByID(id)
+// GetBounty 根据 ID 获取悬赏令
+func (s *bountyService) GetBounty(id uuid.UUID) (*tables.Bounty, error) {
+	return s.bountyRepo.FindBountyByID(id)
 }
 
-func (s *bountyService) UpdateBounty(id uint, input dtos.BountyDTO) (*tables.Bounty, error) {
-	bounty, err := s.bountyRepo.FindByID(id)
+// UpdateBounty 更新指定 ID 的悬赏令
+func (s *bountyService) UpdateBounty(id uuid.UUID, input dtos.BountyDTO) (*tables.Bounty, error) {
+	bounty, err := s.bountyRepo.FindBountyByID(id)
 	if err != nil {
 		return nil, err
 	}
-	// 更新逻辑...
-	if err := s.bountyRepo.Update(bounty); err != nil {
+	if bounty == nil {
+		return nil, errors.New("bounty not found")
+	}
+
+	// 更新字段
+	if input.Title != "" {
+		bounty.Title = input.Title
+	}
+	if input.Description != "" {
+		bounty.Description = input.Description
+	}
+	if input.Reward >= 0 {
+		bounty.Reward = input.Reward
+	}
+	if input.Deadline != "" {
+		deadline, err := time.Parse("2006-01-02", input.Deadline)
+		if err != nil {
+			log.Printf("Error parsing deadline: %v", err)
+			return nil, err
+		}
+		bounty.Deadline = deadline
+	}
+	// 继续更新其他字段...
+
+	bounty.UpdatedAt = time.Now()
+
+	if err := s.bountyRepo.UpdateBounty(bounty); err != nil {
 		return nil, err
 	}
 	return bounty, nil
 }
 
-func (s *bountyService) DeleteBounty(id uint) error {
-	bounty, err := s.bountyRepo.FindByID(id)
+// DeleteBounty 删除指定 ID 的悬赏令
+func (s *bountyService) DeleteBounty(id uuid.UUID) error {
+	bounty, err := s.bountyRepo.FindBountyByID(id)
 	if err != nil {
 		return err
 	}
-	return s.bountyRepo.Delete(bounty)
+	if bounty == nil {
+		return errors.New("bounty not found")
+	}
+	return s.bountyRepo.DeleteBounty(bounty)
 }
 
-func (s *bountyService) LikeBounty(userID, bountyID uint) error {
+// LikeBounty 用户点赞悬赏令
+func (s *bountyService) LikeBounty(userID, bountyID uuid.UUID) error {
 	like := &tables.Like{UserID: userID, BountyID: bountyID}
 	if err := s.bountyRepo.AddLike(like); err != nil {
 		return err
@@ -119,7 +169,23 @@ func (s *bountyService) LikeBounty(userID, bountyID uint) error {
 	return s.bountyRepo.IncrementField(bountyID, "likes_count")
 }
 
-func (s *bountyService) CommentOnBounty(userID, bountyID uint, content string) (*tables.Comment, error) {
+// UnlikeBounty 用户取消点赞悬赏令
+func (s *bountyService) UnlikeBounty(userID, bountyID uuid.UUID) error {
+	liked, err := s.bountyRepo.IsBountyLikedByUser(userID, bountyID)
+	if err != nil {
+		return err
+	}
+	if !liked {
+		return errors.New("用户尚未点赞该悬赏令")
+	}
+	if err := s.bountyRepo.RemoveLike(userID, bountyID); err != nil {
+		return err
+	}
+	return s.bountyRepo.DecrementField(bountyID, "likes_count")
+}
+
+// CommentOnBounty 用户评论悬赏令
+func (s *bountyService) CommentOnBounty(userID, bountyID uuid.UUID, content string) (*tables.Comment, error) {
 	comment := &tables.Comment{UserID: userID, BountyID: bountyID, Content: content}
 	if err := s.bountyRepo.AddComment(comment); err != nil {
 		return nil, err
@@ -130,7 +196,8 @@ func (s *bountyService) CommentOnBounty(userID, bountyID uint, content string) (
 	return comment, nil
 }
 
-func (s *bountyService) RateBounty(userID, bountyID uint, score float64) error {
+// RateBounty 用户评分悬赏令
+func (s *bountyService) RateBounty(userID, bountyID uuid.UUID, score float64) error {
 	var rating tables.Rating
 
 	// 检查用户是否已经评分
@@ -139,47 +206,50 @@ func (s *bountyService) RateBounty(userID, bountyID uint, score float64) error {
 		return err
 	}
 
-	// 如果用户已经评分，更新评分
-	if rating.ID != 0 {
+	if rating.BountyID != uuid.Nil {
+		// 更新评分
 		rating.Score = score
 		if err := s.bountyRepo.UpdateRating(&rating); err != nil {
 			return err
 		}
 	} else {
-		// 否则，添加新评分
+		// 添加新评分
 		newRating := &tables.Rating{UserID: userID, BountyID: bountyID, Score: score}
 		if err := s.bountyRepo.AddRating(newRating); err != nil {
 			return err
 		}
 	}
 
-	// 因为我们已经移除了 UpdateAverageRating 方法，逻辑简化至此即可
 	return nil
 }
 
-func (s *bountyService) IncrementViewCount(bountyID uint) error {
+// IncrementViewCount 增加悬赏令的浏览次数
+func (s *bountyService) IncrementViewCount(bountyID uuid.UUID) error {
 	return s.bountyRepo.IncrementField(bountyID, "view_count")
 }
 
-func (s *bountyService) GetBountiesByUserID(userID uint) ([]tables.Bounty, error) {
+// GetBountiesByUserID 获取用户发布的所有悬赏令
+func (s *bountyService) GetBountiesByUserID(userID uuid.UUID) ([]tables.Bounty, error) {
 	return s.bountyRepo.FindByUserID(userID)
 }
 
-func (s *bountyService) GetReceivedBounties(userID uint) ([]tables.Bounty, error) {
+// GetReceivedBounties 获取用户接收的所有悬赏令
+func (s *bountyService) GetReceivedBounties(userID uuid.UUID) ([]tables.Bounty, error) {
 	return s.bountyRepo.FindReceivedByUserID(userID)
 }
 
-func (s *bountyService) GetComments(bountyID uint) ([]tables.Comment, error) {
+// GetComments 获取指定悬赏令的所有评论
+func (s *bountyService) GetComments(bountyID uuid.UUID) ([]tables.Comment, error) {
 	return s.bountyRepo.GetCommentsByBountyID(bountyID)
 }
 
-func (s *bountyService) GetUserBountyInteraction(userID, bountyID uint) (*dtos.BountyInteraction, error) {
+// GetUserBountyInteraction 获取用户在指定悬赏令上的互动信息
+func (s *bountyService) GetUserBountyInteraction(userID, bountyID uuid.UUID) (*dtos.BountyInteraction, error) {
 	liked, err := s.bountyRepo.IsBountyLikedByUser(userID, bountyID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 这里的 GetUserBountyRating 已经处理了 record not found 的情况
 	score, err := s.bountyRepo.GetUserBountyRating(userID, bountyID)
 	if err != nil {
 		return nil, err
@@ -188,22 +258,68 @@ func (s *bountyService) GetUserBountyInteraction(userID, bountyID uint) (*dtos.B
 	return &dtos.BountyInteraction{Liked: liked, Score: score}, nil
 }
 
-func (s *bountyService) UnlikeBounty(userID, bountyID uint) error {
-	// 检查用户是否已经点赞
-	liked, err := s.bountyRepo.IsBountyLikedByUser(userID, bountyID)
+// internal/app/services/bounty_service.go
+
+func (s *bountyService) SettleBountyAccounts(bountyID uuid.UUID) error {
+	// 获取悬赏令
+	bounty, err := s.bountyRepo.FindBountyByID(bountyID)
+	if err != nil {
+		return err
+	}
+	if bounty == nil {
+		return errors.New("bounty not found")
+	}
+
+	// 检查悬赏令状态是否允许结算
+	if bounty.PaymentStatus != "Pending" {
+		return errors.New("bounty is not in a state that can be settled")
+	}
+
+	// 获取所有通过的申请
+	approvedApplications, err := s.applicationRepo.GetApprovedApplicationsByBountyID(bountyID)
 	if err != nil {
 		return err
 	}
 
-	if !liked {
-		return errors.New("用户尚未点赞该悬赏令")
+	if len(approvedApplications) == 0 {
+		return errors.New("no approved applications to settle")
 	}
 
-	// 删除点赞记录
-	if err := s.bountyRepo.RemoveLike(userID, bountyID); err != nil {
+	// 计算每个申请者应得的奖励
+	totalReward := bounty.Reward
+	rewardPerApplication := totalReward / float64(len(approvedApplications))
+
+	// 分发奖励
+	for _, app := range approvedApplications {
+		// 更新申请状态为已结算
+		app.Status = "Settled"
+		if err := s.applicationRepo.UpdateApplicationStatus(app.ID, app.Status); err != nil {
+			return err
+		}
+
+		// 发送通知给申请者
+		notification := &tables.Notification{
+			UserID:      app.UserID,
+			Title:       "Bounty Settle",
+			Description: "Your application for bounty '" + bounty.Title + "' has been settled. Reward: $" + fmt.Sprintf("%.2f", rewardPerApplication),
+			IsRead:      false,
+		}
+		if err := s.notificationRepo.Create(notification); err != nil {
+			return err
+		}
+
+		// 记录奖励分发（此处假设有一个函数处理资金转移）
+		// err = TransferFunds(app.UserID, rewardPerApplication)
+		// if err != nil {
+		//     return err
+		// }
+	}
+
+	// 更新悬赏令的支付状态
+	bounty.PaymentStatus = "Completed"
+	if err := s.bountyRepo.UpdateBounty(bounty); err != nil {
 		return err
 	}
 
-	// 减少点赞计数
-	return s.bountyRepo.DecrementField(bountyID, "likes_count")
+	return nil
 }

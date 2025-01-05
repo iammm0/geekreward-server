@@ -1,50 +1,78 @@
-package validators
+package utils
 
 import (
 	"errors"
-	"fmt"
-	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"reflect"
+
+	"github.com/go-playground/locales/zh"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
+	zhTranslations "github.com/go-playground/validator/v10/translations/zh"
 )
 
+// Validator 是一个封装了 go-playground/validator 的结构体，支持错误消息的本地化
 type Validator struct {
 	validate *validator.Validate
+	trans    ut.Translator
 }
 
-/*
-基础验证：直接调用 ValidateStruct 对结构体进行常规验证。
-扩展验证：通过 RegisterCustomValidation 注册自定义验证规则，满足复杂的业务需求。
-错误处理：通过 TranslateValidationErrors 将错误信息转换为可读的格式，提高可维护性。
+// NewValidator 初始化一个新的 Validator 实例，并注册中文翻译
+func NewValidator() (*Validator, error) {
+	// 创建一个中文的 locale
+	zhLocale := zh.New()
 
-在小型项目或初期阶段，使用一个全局通用的验证器对象是最简单且快速的方式。
-可以直接在 main 方法中初始化一个全局验证器，并在需要时通过上下文或全局变量调用。
-这种方式减少了依赖注入的复杂性，并且适用于项目的早期阶段或实验性质的项目。
+	// 创建一个 UniversalTranslator 实例
+	uni := ut.New(zhLocale, zhLocale)
 
-随着项目规模的扩大，模块或服务的复杂性增加，不同模块可能需要不同的验证逻辑。
-此时，采用依赖注入模式，将验证器与具体模块或服务绑定是更合理的选择。
-每个模块可以根据自身的需求注入一个专用的验证器实例，以应对更加复杂的业务场景和验证逻辑。
-*/
-
-func NewValidator() *Validator {
-	v := &Validator{
-		validate: validator.New(),
+	// 获取中文的 Translator
+	trans, found := uni.GetTranslator("zh")
+	if !found {
+		return nil, errors.New("translator not found")
 	}
 
+	// 创建一个新的验证器实例
+	v := validator.New()
+
 	// 注册自定义标签名解析器，使验证错误信息中显示的字段名更具可读性
-	v.validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+	v.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		// 优先使用 json 标签
 		name := fld.Tag.Get("json")
-		if name == "" {
+		if name == "-" || name == "" {
+			// 如果没有 json 标签，则使用字段名
 			name = fld.Name
 		}
 		return name
 	})
 
-	return v
+	// 注册中文翻译
+	if err := zhTranslations.RegisterDefaultTranslations(v, trans); err != nil {
+		return nil, err
+	}
+
+	// 注册 UUID 验证
+	err := v.RegisterValidation("uuid", func(fl validator.FieldLevel) bool {
+		_, err := uuid.Parse(fl.Field().String())
+		return err == nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &Validator{
+		validate: v,
+		trans:    trans,
+	}, nil
 }
 
 // ValidateStruct 执行对结构体的验证
-func (v *Validator) ValidateStruct(s interface{}) error {
-	return v.validate.Struct(s)
+func (v *Validator) ValidateStruct(obj interface{}) error {
+	return v.validate.Struct(obj)
+}
+
+// Engine 返回底层的验证器实例
+func (v *Validator) Engine() interface{} {
+	return v.validate
 }
 
 // RegisterCustomValidation 注册自定义验证器
@@ -52,13 +80,26 @@ func (v *Validator) RegisterCustomValidation(tag string, fn validator.Func) erro
 	return v.validate.RegisterValidation(tag, fn)
 }
 
-// TranslateValidationErrors 将验证错误信息转换为更具可读性的格式
+// TranslateValidationErrors 将验证错误信息转换为更具可读性的格式（中文）
 func (v *Validator) TranslateValidationErrors(err error) map[string]string {
+	// 类型断言，确保错误是 validator.ValidationErrors 类型
 	var validationErrors validator.ValidationErrors
-	errors.As(err, &validationErrors)
-	errors := make(map[string]string)
-	for _, fieldError := range validationErrors {
-		errors[fieldError.Field()] = fmt.Sprintf("Validation failed on the '%s' tag", fieldError.Tag())
+	ok := errors.As(err, &validationErrors)
+	if !ok {
+		// 如果不是 ValidationErrors，返回一个通用错误
+		return map[string]string{
+			"error": "验证失败",
+		}
 	}
-	return errors
+
+	// 创建一个 map 来存储字段名和对应的错误消息
+	errorsMap := make(map[string]string)
+
+	// 遍历所有的验证错误
+	for _, fieldError := range validationErrors {
+		// 获取翻译后的错误消息
+		errorsMap[fieldError.Field()] = fieldError.Translate(v.trans)
+	}
+
+	return errorsMap
 }
