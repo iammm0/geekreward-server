@@ -55,13 +55,13 @@ func SetupRouter(
 		api.POST("/bounties/:bounty_id/settle-accounts", middlewares.JWTAuthMiddleware(), bountyController.SettleBountyAccounts) // 结算悬赏令（需JWT认证）
 
 		// 极客相关路由
-		api.GET("/geeks", geekController.GetTopGeeks)                                                                 // 获取极客排行榜概览信息
-		api.GET("/geeks/:id", geekController.GetGeekByID)                                                             // 获取指定ID的极客公开信息
-		api.POST("/geeks/:id/invitation", middlewares.JWTAuthMiddleware(), geekController.SendInvitation)             // 向特定极客发出组队邀请（需JWT认证）
-		api.PUT("/invitation/:invitation_id", middlewares.JWTAuthMiddleware(), invitationController.AcceptInvitation) // 接受组队邀请（需JWT认证）
-		api.PUT("/invitation/:invitation_id", middlewares.JWTAuthMiddleware(), invitationController.RejectInvitation) // 拒绝组队邀请（需JWT认证）
-
-		api.POST("/geeks/:id", middlewares.JWTAuthMiddleware(), geekController.ExpressAffection) // 向特定极客或团队表达好感（需JWT认证）
+		api.GET("/geeks", geekController.GetTopGeeks)                                                                        // 获取极客排行榜概览信息
+		api.GET("/geeks/:id", geekController.GetGeekByID)                                                                    // 获取指定ID的极客公开信息
+		api.POST("/geeks/:id/invitation", middlewares.JWTAuthMiddleware(), geekController.SendInvitation)                    // 向特定极客发出组队邀请（需JWT认证）
+		api.POST("/geeks/:id", middlewares.JWTAuthMiddleware(), geekController.ExpressAffection)                             // 向特定极客或团队表达好感（需JWT认证）
+		api.PUT("/invitation/:invitation_id/accept", middlewares.JWTAuthMiddleware(), invitationController.AcceptInvitation) // 接受组队邀请（需JWT认证）
+		api.PUT("/invitation/:invitation_id/reject", middlewares.JWTAuthMiddleware(), invitationController.RejectInvitation) // 拒绝组队邀请（需JWT认证）
+		api.POST("/geeks/:id/express-affection", middlewares.JWTAuthMiddleware(), geekController.ExpressAffection)
 
 		// 用户信息相关路由
 		api.GET("/user/profile", middlewares.JWTAuthMiddleware(), userController.GetUserInfo)                     // 获取用户信息（需JWT认证）
@@ -73,20 +73,25 @@ func SetupRouter(
 		api.GET("/notifications", middlewares.JWTAuthMiddleware(), notificationController.GetUserNotifications)            // 获取用户的所有通知（需JWT认证）
 		api.PUT("/notifications/:id/read", middlewares.JWTAuthMiddleware(), notificationController.MarkNotificationAsRead) // 标记通知为已读（需JWT认证）
 		api.DELETE("/notifications/:id", middlewares.JWTAuthMiddleware(), notificationController.DeleteNotification)       // 删除通知（需JWT认证）
+		api.POST("/notifications", middlewares.JWTAuthMiddleware(), notificationController.CreateNotification)
 
 		// 悬赏令申请相关路由
-		api.POST("/applications/:bounty_id", middlewares.JWTAuthMiddleware(), applicationController.CreateApplication)   // 向特定悬赏任务发出悬赏令申请（需JWT认证）
-		api.GET("/applications/:bounty_id", middlewares.JWTAuthMiddleware(), applicationController.GetApplications)      // 发布者获取某个悬赏令的所有申请（需JWT认证）
-		api.GET("applications/:bounty_id", middlewares.JWTAuthMiddleware(), applicationController.GetPublicApplications) // 公开的申请信息
-		api.PUT("/applications/:id/approve", middlewares.JWTAuthMiddleware(), applicationController.ApproveApplication)  // 批准悬赏令申请（需JWT认证）
-		api.PUT("/applications/:id/reject", middlewares.JWTAuthMiddleware(), applicationController.RejectApplication)    // 拒绝悬赏令申请（需JWT认证）
+		api.POST("/applications/:bounty_id", middlewares.JWTAuthMiddleware(), applicationController.CreateApplication)              // 向特定悬赏任务发出悬赏令申请（需JWT认证）
+		api.GET("/applications/:bounty_id/private", middlewares.JWTAuthMiddleware(), applicationController.GetApplications)         // 发布者获取某个悬赏令的所有申请（需JWT认证）
+		api.GET("applications/:bounty_id/public", middlewares.JWTAuthMiddleware(), applicationController.GetPublicApplications)     // 公开的申请信息
+		api.PUT("/applications/:application_id/approve", middlewares.JWTAuthMiddleware(), applicationController.ApproveApplication) // 批准悬赏令申请（需JWT认证）
+		api.PUT("/applications/:application_id/reject", middlewares.JWTAuthMiddleware(), applicationController.RejectApplication)   // 拒绝悬赏令申请（需JWT认证）
 
 		// 里程碑相关路由
-		api.GET("/milestones/bounty/:bounty_id", milestoneController.GetMilestonesByBountyID)                                // 获取指定悬赏令的里程碑
-		api.POST("/milestones/bounty/:bounty_id", middlewares.JWTAuthMiddleware(), milestoneController.CreateMilestone)      // 悬赏令发布者公布里程碑
-		api.PUT("/milestones/:milestone_id", middlewares.JWTAuthMiddleware(), milestoneController.UpdateMilestone)           // 悬赏令发布者更新里程碑（需JWT认证）
-		api.PUT("/milestones/:milestone_id", middlewares.JWTAuthMiddleware(), milestoneController.UpdateMilestoneByReceiver) // 悬赏零接收者更新里程碑（需JWT认证）
-		api.DELETE("/milestones/:milestone_id", middlewares.JWTAuthMiddleware(), milestoneController.DeleteMilestone)        // 删除里程碑（需JWT认证）
+		api.GET("/milestones/bounty/:bounty_id", milestoneController.GetMilestonesByBountyID)                                                    // 获取指定悬赏令的里程碑
+		api.POST("/milestones/bounty/:bounty_id", middlewares.JWTAuthMiddleware(), milestoneController.CreateMilestone)                          // 悬赏令发布者公布里程碑
+		api.PUT("/milestones/:milestone_id/promulgator", middlewares.JWTAuthMiddleware(), milestoneController.UpdateMilestone)                   // 悬赏令发布者更新里程碑（需JWT认证）
+		api.PUT("/milestones/:bounty_id/:milestone_id/receiver", middlewares.JWTAuthMiddleware(), milestoneController.UpdateMilestoneByReceiver) // 悬赏零接收者更新里程碑（需JWT认证）
+		api.DELETE("/milestones/:milestone_id", middlewares.JWTAuthMiddleware(), milestoneController.DeleteMilestone)                            // 删除里程碑（需JWT认证）
+		// 新增的悬赏令状态相关路由
+		// api.POST("/bounties/:bounty_id/confirm-milestones", middlewares.JWTAuthMiddleware(), bountyController.ConfirmMilestones) // 接收者确认提交所有里程碑
+		// api.POST("/bounties/:bounty_id/verify-milestones", middlewares.JWTAuthMiddleware(), bountyController.VerifyMilestones)   // 发布者审核并确认所有里程碑
+		// api.POST("/bounties/:bounty_id/settle", middlewares.JWTAuthMiddleware(), bountyController.ApplySettlement)               // 接收者申请悬赏令清算
 	}
 
 	// 处理未匹配的路由，返回前端应用的 index.html（如果使用SPA）

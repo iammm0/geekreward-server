@@ -20,12 +20,20 @@ func NewMilestoneController(milestoneService services.MilestoneService) *Milesto
 // CreateMilestone 创建新的里程碑
 func (ctl *MilestoneController) CreateMilestone(c *gin.Context) {
 	var input dtos.MilestoneDTO
+
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		return
+	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	milestone, err := ctl.milestoneService.CreateMilestone(input)
+	milestone, err := ctl.milestoneService.CreateMilestone(input, bountyID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

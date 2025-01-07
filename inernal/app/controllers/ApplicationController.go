@@ -32,19 +32,14 @@ func (ctl *ApplicationController) CreateApplication(c *gin.Context) {
 		return
 	}
 
-	var input struct {
-		BountyID uuid.UUID `json:"bounty_id" binding:"required,uuid"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid input data",
-			"details": err.Error(),
-		})
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
 		return
 	}
 
-	if err := ctl.applicationService.CreateApplication(input.BountyID, uid); err != nil {
+	if err := ctl.applicationService.CreateApplication(bountyID, uid); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create application"})
 		return
 	}
@@ -72,7 +67,7 @@ func (ctl *ApplicationController) GetApplications(c *gin.Context) {
 
 // ApproveApplication 批准申请
 func (ctl *ApplicationController) ApproveApplication(c *gin.Context) {
-	applicationIDStr := c.Param("id")
+	applicationIDStr := c.Param("application_id")
 	applicationID, err := uuid.Parse(applicationIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Application ID"})
@@ -89,7 +84,7 @@ func (ctl *ApplicationController) ApproveApplication(c *gin.Context) {
 
 // RejectApplication 拒绝申请
 func (ctl *ApplicationController) RejectApplication(c *gin.Context) {
-	applicationIDStr := c.Param("id")
+	applicationIDStr := c.Param("application_id")
 	applicationID, err := uuid.Parse(applicationIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Application ID"})

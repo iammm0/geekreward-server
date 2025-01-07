@@ -69,14 +69,17 @@ func (ctl *GeekController) ExpressAffection(c *gin.Context) {
 		return
 	}
 
-	userIDStr, exists := c.Get("user_id")
+	// 获取当前登录用户的ID从上下文
+	userIDInterface, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	userID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+
+	// 断言 userID 为 uuid.UUID 类型
+	userID, ok := userIDInterface.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
 		return
 	}
 
@@ -99,14 +102,16 @@ func (ctl *GeekController) SendInvitation(c *gin.Context) {
 	}
 
 	// 获取当前登录用户的ID从上下文
-	userIDStr, exists := c.Get("user_id")
+	userIDInterface, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	userID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+
+	// 断言 userID 为 uuid.UUID 类型
+	userID, ok := userIDInterface.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
 		return
 	}
 

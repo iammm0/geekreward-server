@@ -20,11 +20,13 @@ func NewNotificationController(notificationService services.NotificationService)
 
 // CreateNotification 创建新的通知
 func (ctl *NotificationController) CreateNotification(c *gin.Context) {
+
 	var input struct {
 		UserID      uuid.UUID `json:"user_id" binding:"required,uuid"`
 		Title       string    `json:"title" binding:"required"`
 		Description string    `json:"description" binding:"required"`
 	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input data", "details": err.Error()})
 		return
@@ -46,10 +48,17 @@ func (ctl *NotificationController) CreateNotification(c *gin.Context) {
 
 // GetUserNotifications 获取用户的所有通知
 func (ctl *NotificationController) GetUserNotifications(c *gin.Context) {
-	userIDStr := c.Param("user_id")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+	// 获取当前登录用户的ID从上下文
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// 断言 userID 为 uuid.UUID 类型
+	userID, ok := userIDInterface.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
 		return
 	}
 

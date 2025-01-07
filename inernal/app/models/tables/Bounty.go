@@ -58,3 +58,14 @@ type Bounty struct {
 	Likes        []Like        `gorm:"foreignKey:BountyID;references:ID"`
 	Ratings      []Rating      `gorm:"foreignKey:BountyID;references:ID"`
 }
+
+type BountyStatus string
+
+const (
+	BountyStatusCreated             BountyStatus = "Created"
+	BountyStatusMilestonesConfirmed BountyStatus = "MilestonesConfirmed"
+	BountyStatusMilestonesVerified  BountyStatus = "MilestonesVerified"
+	BountyStatusSettling            BountyStatus = "Settling"
+	BountyStatusSettled             BountyStatus = "Settled"
+	BountyStatusCancelled           BountyStatus = "Cancelled"
+)

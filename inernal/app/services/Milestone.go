@@ -11,7 +11,7 @@ import (
 
 type MilestoneService interface {
 	GetMilestonesByBountyID(bountyID uuid.UUID) ([]tables.Milestone, error)
-	CreateMilestone(input dtos.MilestoneDTO) (*tables.Milestone, error)
+	CreateMilestone(input dtos.MilestoneDTO, bountyID uuid.UUID) (*tables.Milestone, error)
 	UpdateMilestone(milestoneID uuid.UUID, input dtos.MilestoneUpdateDTO) error
 	DeleteMilestone(milestoneID uuid.UUID) error
 	UpdateMilestoneByReceiver(bountyID uuid.UUID, milestoneID uuid.UUID, userID uuid.UUID, input dtos.MilestoneUpdateDTO) error
@@ -97,9 +97,9 @@ func (s *milestoneService) GetMilestonesByBountyID(bountyID uuid.UUID) ([]tables
 }
 
 // CreateMilestone 创建新的里程碑
-func (s *milestoneService) CreateMilestone(input dtos.MilestoneDTO) (*tables.Milestone, error) {
+func (s *milestoneService) CreateMilestone(input dtos.MilestoneDTO, bountyID uuid.UUID) (*tables.Milestone, error) {
 	// 检查关联的悬赏令是否存在
-	bounty, err := s.bountyRepo.FindBountyByID(input.BountyID)
+	bounty, err := s.bountyRepo.FindBountyByID(bountyID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (s *milestoneService) CreateMilestone(input dtos.MilestoneDTO) (*tables.Mil
 		Title:       input.Title,
 		Description: input.Description,
 		DueDate:     input.DueDate,
-		BountyID:    input.BountyID,
+		BountyID:    bountyID,
 	}
 
 	// 保存里程碑
