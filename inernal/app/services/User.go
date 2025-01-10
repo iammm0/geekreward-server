@@ -22,11 +22,11 @@ func NewUserService(userRepo repositories.UserRepository) UserService {
 }
 
 func (s *userService) GetUserByID(id uuid.UUID) (*tables.User, error) {
-	return s.userRepo.FindByID(id)
+	return s.userRepo.FindByUserID(id)
 }
 
 func (s *userService) UpdateUser(id uuid.UUID, input dtos.UpdateUserProfile) (*tables.User, error) {
-	user, err := s.userRepo.FindByID(id)
+	user, err := s.userRepo.FindByUserID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (s *userService) UpdateUser(id uuid.UUID, input dtos.UpdateUserProfile) (*t
 	user.MaxDifficulty = input.MaxDifficulty
 	user.Reputation = input.Reputation
 
-	if err := s.userRepo.Update(user); err != nil {
+	if err := s.userRepo.UpdateUserProfile(user); err != nil {
 		return nil, err
 	}
 

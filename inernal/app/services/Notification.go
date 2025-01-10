@@ -22,11 +22,11 @@ func NewNotificationService(notificationRepo repositories.NotificationRepository
 }
 
 func (s *notificationService) CreateNotification(notification *tables.Notification) error {
-	return s.notificationRepo.Create(notification)
+	return s.notificationRepo.CreateNotification(notification)
 }
 
 func (s *notificationService) GetUserNotifications(userID uuid.UUID) ([]tables.Notification, error) {
-	return s.notificationRepo.FindByUserID(userID)
+	return s.notificationRepo.FindNotificationsByUserID(userID)
 }
 
 func (s *notificationService) MarkNotificationAsRead(notificationID uuid.UUID) error {
@@ -34,5 +34,5 @@ func (s *notificationService) MarkNotificationAsRead(notificationID uuid.UUID) e
 }
 
 func (s *notificationService) DeleteNotification(notificationID uuid.UUID) error {
-	return s.notificationRepo.Delete(notificationID)
+	return s.notificationRepo.DeleteNotification(notificationID)
 }

@@ -49,16 +49,22 @@ func (ctl *ApplicationController) CreateApplication(c *gin.Context) {
 
 // GetApplications 获取某个悬赏任务的所有申请
 func (ctl *ApplicationController) GetApplications(c *gin.Context) {
+	// 从路由字段获取 bounty_id 的字段值
+	// 声明并赋值 bountyIDStr 字段
 	bountyIDStr := c.Param("bounty_id")
+	// 使用 uuid.Parse() 类型转化函数
 	bountyID, err := uuid.Parse(bountyIDStr)
+	// 该类型转化函数会返回两个可能的值 ，如若 err 不为空 那么就返回对应的状态码与错误信息
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 悬赏令ID"})
 		return
 	}
 
+	// 调用控制器对象所绑定的 applicationService 模块的方法的引用
 	applications, err := ctl.applicationService.GetApplications(bountyID)
+	// 同样
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch applications"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取悬赏令的申请信息失败"})
 		return
 	}
 

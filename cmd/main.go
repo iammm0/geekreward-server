@@ -67,7 +67,7 @@ func main() {
 
 	// 初始化服务
 	authService := services.NewAuthService(userRepo)
-	bountyService := services.NewBountyService(bountyRepo, applicationRepo, notificationRepo)
+	bountyService := services.NewBountyService(bountyRepo, applicationRepo, notificationRepo, milestoneRepo)
 	geekService := services.NewGeekService(geekRepo, invitationRepo)
 	userService := services.NewUserService(userRepo)
 	milestoneService := services.NewMilestoneService(milestoneRepo, bountyRepo)

@@ -10,7 +10,7 @@ database:
   port: 5432
   user: postgres
   password: iammm
-  name: geekreward
+  name: geekreward2
 
 redis:
   host: localhost

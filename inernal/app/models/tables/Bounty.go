@@ -14,7 +14,7 @@ type Bounty struct {
 	Title           string         `gorm:"not null"`
 	Description     string         `gorm:"not null"`
 	Reward          float64        `gorm:"not null"`
-	Status          string         `gorm:"not null;default:'open';index"` // "open", "closed", "completed"
+	Status          BountyStatus   `gorm:"type:varchar(50);not null;default:'Created';index"`
 	Deadline        time.Time      `gorm:"index"`
 	DifficultyLevel string         // "easy", "medium", "hard"
 	Category        string         // 可通过预定义类别或数据库表进行规范

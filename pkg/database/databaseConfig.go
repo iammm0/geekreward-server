@@ -21,8 +21,10 @@ func ConnectDatabase(host string, port int, user string, password string, dbname
 		log.Fatalf("尝试连接数据库失败: %v", err)
 	}
 
+	// 向日志面板输出数据库连接成功的消息
 	fmt.Println("成功连接至数据库")
 
+	// 执行数据库迁移，否则返回迁移错误
 	err = migrations.Migrate(DB)
 	if err != nil {
 		log.Fatalf("迁移数据库出错: %v", err)

@@ -71,7 +71,7 @@ func (s *authService) Register(input dtos.RegisterInput, file *multipart.FileHea
 		Skills:           input.Skills,
 	}
 
-	if err := s.userRepo.Create(user); err != nil {
+	if err := s.userRepo.CreateUser(user); err != nil {
 		if filePath != "" {
 			err := os.Remove(filePath)
 			if err != nil {

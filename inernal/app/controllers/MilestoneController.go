@@ -19,8 +19,6 @@ func NewMilestoneController(milestoneService services.MilestoneService) *Milesto
 
 // CreateMilestone 创建新的里程碑
 func (ctl *MilestoneController) CreateMilestone(c *gin.Context) {
-	var input dtos.MilestoneDTO
-
 	bountyIDStr := c.Param("bounty_id")
 	bountyID, err := uuid.Parse(bountyIDStr)
 	if err != nil {
@@ -28,12 +26,13 @@ func (ctl *MilestoneController) CreateMilestone(c *gin.Context) {
 		return
 	}
 
+	var input dtos.MilestoneDTO
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	milestone, err := ctl.milestoneService.CreateMilestone(input, bountyID)
+	milestone, err := ctl.milestoneService.CreateMilestone(bountyID, input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -86,7 +85,10 @@ func (ctl *MilestoneController) DeleteMilestone(c *gin.Context) {
 
 // GetMilestonesByBountyID 获取指定悬赏令的所有里程碑
 func (ctl *MilestoneController) GetMilestonesByBountyID(c *gin.Context) {
-	bountyIDStr := c.Param("bounty_id")
+	// bountyIDStr := c.Param("bounty_id")
+	// 从Query或Param获取bounty_id
+	bountyIDStr := c.Query("bounty_id") // 或者使用路由: c.Param("bounty_id")
+
 	bountyID, err := uuid.Parse(bountyIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})

@@ -29,6 +29,9 @@ type BountyService interface {
 	GetComments(bountyID uuid.UUID) ([]tables.Comment, error)
 	GetUserBountyInteraction(userID, bountyID uuid.UUID) (*dtos.BountyInteraction, error)
 	SettleBountyAccounts(bountyID uuid.UUID) error
+	ConfirmMilestones(bountyID uuid.UUID, userID uuid.UUID) error
+	VerifyMilestones(bountyID, userID uuid.UUID) error
+	ApplySettlement(bountyID, userID uuid.UUID) error
 }
 
 // bountyService 是 BountyService 接口的具体实现
@@ -36,6 +39,7 @@ type bountyService struct {
 	bountyRepo       repositories.BountyRepository
 	applicationRepo  repositories.ApplicationRepository
 	notificationRepo repositories.NotificationRepository
+	milestoneRepo    repositories.MilestoneRepository
 }
 
 // NewBountyService 创建一个新的 BountyService 实例
@@ -43,12 +47,149 @@ func NewBountyService(
 	bountyRepo repositories.BountyRepository,
 	applicationRepo repositories.ApplicationRepository,
 	notificationRepo repositories.NotificationRepository,
+	milestoneRepo repositories.MilestoneRepository,
 ) BountyService {
 	return &bountyService{
 		bountyRepo:       bountyRepo,
 		applicationRepo:  applicationRepo,
 		notificationRepo: notificationRepo,
+		milestoneRepo:    milestoneRepo,
 	}
+}
+
+// ConfirmMilestones 接受者确认提交所有里程碑
+func (s *bountyService) ConfirmMilestones(bountyID uuid.UUID, userID uuid.UUID) error {
+	// 1. 根据悬赏令ID查找悬赏令
+	bounty, err := s.bountyRepo.FindBountyByID(bountyID)
+	if err != nil {
+		return err
+	}
+	if bounty == nil {
+		return errors.New("悬赏令未找到")
+	}
+
+	// 2. 检查当前用户是否为接收者
+	if bounty.ReceiverID == nil {
+		return errors.New("悬赏令并未被接收")
+	}
+	if *bounty.ReceiverID != userID {
+		return errors.New("你并不是该悬赏令的接收者")
+	}
+
+	// 3. 获取该悬赏令下的所有里程碑
+	milestones, err := s.milestoneRepo.FindByBountyID(bountyID)
+	if err != nil {
+		return err
+	}
+	if len(milestones) == 0 {
+		return errors.New("该悬赏令下没有对应的里程碑")
+	}
+
+	// 标记里程碑为完成
+	for _, m := range milestones {
+		if !m.IsCompleted {
+			m.IsCompleted = true
+			if err := s.milestoneRepo.UpdateMilestone(&m); err != nil {
+				return err
+			}
+		}
+	}
+	// 更新 BountyStatus -> MilestonesConfirmed
+	if bounty.Status == tables.BountyStatusCreated {
+		bounty.Status = tables.BountyStatusMilestonesConfirmed
+		bounty.UpdatedAt = time.Now()
+		if err := s.bountyRepo.UpdateBounty(bounty); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("当前 bounty status 字段并不是一个可以有效转换悬赏令转台的状态字段, 当前状态: %v", bounty.Status)
+	}
+
+	return nil
+}
+
+// VerifyMilestones 发布者审核并确认所有里程碑
+func (s *bountyService) VerifyMilestones(bountyID, userID uuid.UUID) error {
+	// 1. 获取悬赏令
+	bounty, err := s.bountyRepo.FindBountyByID(bountyID)
+	if err != nil {
+		return err
+	}
+	if bounty == nil {
+		return errors.New("悬赏令未找到")
+	}
+
+	// 2. 检查当前用户是否为发布者
+	if bounty.UserID != userID {
+		return errors.New("你不是该悬赏令的发布者")
+	}
+
+	// 3. 获取该悬赏令下的所有里程碑
+	milestones, err := s.milestoneRepo.FindByBountyID(bountyID)
+	if err != nil {
+		return err
+	}
+	if len(milestones) == 0 {
+		return errors.New("该悬赏令下没有找到对应的里程碑")
+	}
+
+	// 标记里程碑为完成
+	for _, m := range milestones {
+		if !m.IsCompleted {
+			m.IsCompleted = true
+			if err := s.milestoneRepo.UpdateMilestone(&m); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 5. 所有里程碑完成 -> 发布者确认
+	// 更新 BountyStatus -> MilestonesConfirmed
+	if bounty.Status == tables.BountyStatusCreated {
+		bounty.Status = tables.BountyStatusMilestonesConfirmed
+		bounty.UpdatedAt = time.Now()
+		if err := s.bountyRepo.UpdateBounty(bounty); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("当前 bounty status 字段并不是一个可以有效转换悬赏令转台的状态字段, 当前状态: %v", bounty.Status)
+	}
+	return nil
+}
+
+// ApplySettlement 接收者申请悬赏令清算
+func (s *bountyService) ApplySettlement(bountyID, userID uuid.UUID) error {
+	// 1. 获取悬赏令
+	bounty, err := s.bountyRepo.FindBountyByID(bountyID)
+	if err != nil {
+		return err
+	}
+	if bounty == nil {
+		return errors.New("悬赏令未找到")
+	}
+
+	// 2. 检查当前用户是否为接收者
+	if bounty.ReceiverID == nil {
+		return errors.New("悬赏令并未被接收")
+	}
+	if *bounty.ReceiverID != userID {
+		return errors.New("你不是该悬赏令的接收者")
+	}
+
+	// 检查 BountyStatus 是否已 Verify
+	if bounty.Status == tables.BountyStatusMilestonesVerified {
+		// 进入清算状态
+		bounty.Status = tables.BountyStatusSettling
+		bounty.UpdatedAt = time.Now()
+		if err := s.bountyRepo.UpdateBounty(bounty); err != nil {
+			return err
+		}
+		// 若需要实际资金结算逻辑，可在此调用
+		// e.g. err = doFinancialSettlement(bounty)
+	} else {
+		return fmt.Errorf("当前 bounty status 字段并不是一个可以有效转换悬赏令转台的状态字段, 当前状态: %v", bounty.Status)
+	}
+	return nil
 }
 
 // CreateBounty 创建一个新的悬赏令
@@ -304,7 +445,7 @@ func (s *bountyService) SettleBountyAccounts(bountyID uuid.UUID) error {
 			Description: "Your application for bounty '" + bounty.Title + "' has been settled. Reward: $" + fmt.Sprintf("%.2f", rewardPerApplication),
 			IsRead:      false,
 		}
-		if err := s.notificationRepo.Create(notification); err != nil {
+		if err := s.notificationRepo.CreateNotification(notification); err != nil {
 			return err
 		}
 

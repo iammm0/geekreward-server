@@ -7,11 +7,11 @@ import (
 )
 
 type UserRepository interface {
-	Create(user *tables.User) error
+	CreateUser(user *tables.User) error
 	FindByEmail(email string) (*tables.User, error)
 	FindByUsername(username string) (*tables.User, error)
-	FindByID(id uuid.UUID) (*tables.User, error)
-	Update(user *tables.User) error
+	FindByUserID(id uuid.UUID) (*tables.User, error)
+	UpdateUserProfile(user *tables.User) error
 }
 
 type userRepository struct {
@@ -22,7 +22,7 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }
 
-func (r *userRepository) Create(user *tables.User) error {
+func (r *userRepository) CreateUser(user *tables.User) error {
 	return r.db.Create(user).Error
 }
 
@@ -38,12 +38,12 @@ func (r *userRepository) FindByUsername(username string) (*tables.User, error) {
 	return &user, err
 }
 
-func (r *userRepository) FindByID(id uuid.UUID) (*tables.User, error) {
+func (r *userRepository) FindByUserID(id uuid.UUID) (*tables.User, error) {
 	var user tables.User
 	err := r.db.First(&user, "id = ?", id).Error
 	return &user, err
 }
 
-func (r *userRepository) Update(user *tables.User) error {
+func (r *userRepository) UpdateUserProfile(user *tables.User) error {
 	return r.db.Save(user).Error
 }

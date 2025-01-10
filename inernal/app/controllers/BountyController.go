@@ -440,80 +440,90 @@ func (ctl *BountyController) SettleBountyAccounts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Bounty accounts settled successfully"})
 }
 
-// // ConfirmMilestones 接收者确认提交所有里程碑
-// func (ctl *BountyController) ConfirmMilestones(c *gin.Context) {
-// 	bountyIDStr := c.Param("bounty_id")
-// 	bountyID, err := uuid.Parse(bountyIDStr)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
-// 		return
-// 	}
-//
-// 	// 获取当前登录用户的ID从上下文
-// 	userID, err := ctl.GetUserID(c)
-// 	if err != nil {
-// 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-// 		return
-// 	}
-//
-// 	// 调用服务层方法确认里程碑
-// 	err = ctl.bountyService.ConfirmMilestones(bountyID, userID)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-//
-// 	c.JSON(http.StatusOK, gin.H{"message": "Milestones confirmed successfully"})
-// }
-//
-// // VerifyMilestones 发布者审核并确认所有里程碑
-// func (ctl *BountyController) VerifyMilestones(c *gin.Context) {
-// 	bountyIDStr := c.Param("bounty_id")
-// 	bountyID, err := uuid.Parse(bountyIDStr)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
-// 		return
-// 	}
-//
-// 	// 获取当前登录用户的ID从上下文
-// 	userID, err := controllers.GetUserID(c)
-// 	if err != nil {
-// 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-// 		return
-// 	}
-//
-// 	// 调用服务层方法审核里程碑
-// 	err = ctl.bountyService.VerifyMilestones(bountyID, userID)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-//
-// 	c.JSON(http.StatusOK, gin.H{"message": "Milestones verified successfully"})
-// }
-//
-// // ApplySettlement 接收者申请悬赏令清算
-// func (ctl *BountyController) ApplySettlement(c *gin.Context) {
-// 	bountyIDStr := c.Param("bounty_id")
-// 	bountyID, err := uuid.Parse(bountyIDStr)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
-// 		return
-// 	}
-//
-// 	// 获取当前登录用户的ID从上下文
-// 	userID, err := controllers.GetUserID(c)
-// 	if err != nil {
-// 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-// 		return
-// 	}
-//
-// 	// 调用服务层方法申请清算
-// 	err = ctl.bountyService.ApplySettlement(bountyID, userID)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-//
-// 	c.JSON(http.StatusOK, gin.H{"message": "Settlement application submitted successfully"})
-// }
+// ConfirmMilestones 接收者确认提交所有里程碑
+func (ctl *BountyController) ConfirmMilestones(c *gin.Context) {
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		return
+	}
+
+	// 从上下文中获取当前用户的 user_id
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// 调用服务层方法确认里程碑
+	err = ctl.bountyService.ConfirmMilestones(bountyID, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "当前悬赏令的所有里程碑均被成功确认"})
+}
+
+// VerifyMilestones 发布者审核并确认所有里程碑
+func (ctl *BountyController) VerifyMilestones(c *gin.Context) {
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		return
+	}
+
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err = ctl.bountyService.VerifyMilestones(bountyID, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "All milestones verified by publisher"})
+}
+
+// ApplySettlement 接收者申请悬赏令清算
+func (ctl *BountyController) ApplySettlement(c *gin.Context) {
+	bountyIDStr := c.Param("bounty_id")
+	bountyID, err := uuid.Parse(bountyIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的悬赏令ID"})
+		return
+	}
+
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err = ctl.bountyService.ApplySettlement(bountyID, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Settlement request applied successfully"})
+}
