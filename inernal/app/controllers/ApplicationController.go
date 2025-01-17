@@ -21,30 +21,30 @@ func NewApplicationController(applicationService services.ApplicationService) *A
 func (ctl *ApplicationController) CreateApplication(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
 		return
 	}
 
 	// 断言 userID 为 uuid.UUID 类型
 	uid, ok := userID.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "无效的用户ID类型"})
 		return
 	}
 
 	bountyIDStr := c.Param("bounty_id")
 	bountyID, err := uuid.Parse(bountyIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的悬赏令ID"})
 		return
 	}
 
 	if err := ctl.applicationService.CreateApplication(bountyID, uid); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create application"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "申请失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Application created successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "申请成功"})
 }
 
 // GetApplications 获取某个悬赏任务的所有申请
@@ -76,16 +76,16 @@ func (ctl *ApplicationController) ApproveApplication(c *gin.Context) {
 	applicationIDStr := c.Param("application_id")
 	applicationID, err := uuid.Parse(applicationIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Application ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的申请ID"})
 		return
 	}
 
 	if err := ctl.applicationService.ApproveApplication(applicationID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve application"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "批准申请失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Application approved successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "批准申请成功"})
 }
 
 // RejectApplication 拒绝申请
@@ -93,16 +93,16 @@ func (ctl *ApplicationController) RejectApplication(c *gin.Context) {
 	applicationIDStr := c.Param("application_id")
 	applicationID, err := uuid.Parse(applicationIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Application ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的申请ID"})
 		return
 	}
 
 	if err := ctl.applicationService.RejectApplication(applicationID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject application"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "拒绝申请失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Application rejected successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "拒绝申请成功"})
 }
 
 // GetPublicApplications 获取公开的申请信息
@@ -110,7 +110,7 @@ func (ctl *ApplicationController) GetPublicApplications(c *gin.Context) {
 	bountyIDStr := c.Param("bounty_id")
 	bountyID, err := uuid.Parse(bountyIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bounty ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的悬赏令ID"})
 		return
 	}
 

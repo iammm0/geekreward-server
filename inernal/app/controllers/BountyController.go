@@ -57,22 +57,35 @@ func (ctl *BountyController) CreateBounty(c *gin.Context) {
 }
 
 // GetBounties 获取所有悬赏令处理函数
+// 此处控制器的控制逻辑可以通过悬赏令的状态进行延展
+// const (
+//
+//	悬赏令已创建并处于发布状态  BountyStatusCreated             BountyStatus = "Created"
+//	悬赏令的里程碑被确认  BountyStatusMilestonesConfirmed BountyStatus = "MilestonesConfirmed"
+//	悬赏令里程碑确认  BountyStatusMilestonesVerified  BountyStatus = "MilestonesVerified"
+//	悬赏令被接收中  BountyStatusSettling            BountyStatus = "Settling"
+//	悬赏令已经被解决  BountyStatusSettled             BountyStatus = "Settled"
+//	悬赏令被取消   BountyStatusCancelled           BountyStatus = "Cancelled"
+//
+// )
+// 需要实现通过提取查询参数来获取相应状态的悬赏令
 func (ctl *BountyController) GetBounties(c *gin.Context) {
+	// bountyIDStr := c.Query("bounty_id")
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if err != nil || limit < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit value"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的限制整数"})
 		return
 	}
 
 	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	if err != nil || offset < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset value"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的偏移"})
 		return
 	}
 
 	bounties, err := ctl.bountyService.GetBounties(limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bounties"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取悬赏令失败"})
 		return
 	}
 
@@ -84,16 +97,16 @@ func (ctl *BountyController) GetBounty(c *gin.Context) {
 	idParam := c.Param("bounty_id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的悬赏令ID"})
 		return
 	}
 
 	bounty, err := ctl.bountyService.GetBounty(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Bounty not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "未找到悬赏令"})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bounty"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取悬赏令失败"})
 		}
 		return
 	}
@@ -105,28 +118,28 @@ func (ctl *BountyController) GetBounty(c *gin.Context) {
 func (ctl *BountyController) UpdateBounty(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未认证"})
 		return
 	}
 
 	// 断言 userID 为 uuid.UUID 类型
 	_, ok := userID.(uuid.UUID)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "无效的用户ID类型"})
 		return
 	}
 
 	idParam := c.Param("bounty_id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的悬赏令ID"})
 		return
 	}
 
 	var input dtos.BountyDTO
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid input data",
+			"error":   "无效的传输模型",
 			"details": err.Error(),
 		})
 		return
@@ -134,12 +147,12 @@ func (ctl *BountyController) UpdateBounty(c *gin.Context) {
 
 	bounty, err := ctl.bountyService.UpdateBounty(id, input)
 	if err != nil {
-		log.Printf("Error updating bounty: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bounty"})
+		log.Printf("更新悬赏令时发生错误: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新悬赏令失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Bounty updated successfully", "bounty": bounty})
+	c.JSON(http.StatusOK, gin.H{"message": "悬赏令更新成功", "bounty": bounty})
 }
 
 // DeleteBounty 删除悬赏令处理函数
@@ -147,17 +160,17 @@ func (ctl *BountyController) DeleteBounty(c *gin.Context) {
 	idParam := c.Param("bounty_id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Bounty ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的悬赏令ID"})
 		return
 	}
 
 	err = ctl.bountyService.DeleteBounty(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Bounty not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "悬赏令未找到"})
 		} else {
-			log.Printf("Error deleting bounty: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete bounty"})
+			log.Printf("删除悬赏令时发生错误: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "删除悬赏令失败"})
 		}
 		return
 	}
