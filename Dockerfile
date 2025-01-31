@@ -11,7 +11,7 @@ COPY go.mod main/go.sum ./
 RUN go mod download
 
 # 复制其他源代码文件到工作目录
-COPY .. .
+COPY main .
 
 # 构建应用
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o geekreward ./cmd/main.go

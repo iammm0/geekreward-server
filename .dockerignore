@@ -15,15 +15,15 @@ main/backend/geekreward
 main/frontend/dist
 
 # 忽略本地配置文件
-main/backend/.env
+.env
 config.yaml
-main/backend/app.log
+app.log
 
 # 忽略测试文件
 test/
 
 # 忽略上传文件
-main/backend/uploads/
+uploads/
 
 # 忽略操作系统生成的文件
 *.log

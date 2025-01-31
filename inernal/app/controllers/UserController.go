@@ -79,7 +79,7 @@ func (ctl *UserController) UpdateUserInfo(c *gin.Context) {
 	user, err := ctl.userService.UpdateUser(uid, input)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "用户未22找到"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "用户未找到"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户信息成功"})
 		}
