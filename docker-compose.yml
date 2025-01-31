@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: main/backend/Dockerfile  # 后端的 Dockerfile 路径
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=db
+      - DB_USER=geekuser
+      - DB_PASSWORD=geekpass
+    depends_on:
+      - db
+    networks:
+      - geekreward-net
+
+  frontend:
+    build:
+      context: ./main/frontend  # 指向前端代码所在目录
+      dockerfile: Dockerfile  # 前端的 Dockerfile 路径
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - geekreward-net
+    environment:
+      - VITE_API_URL=http://localhost:8080  # 前端访问后端API的URL
+
+  db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=geekuser
+      - POSTGRES_PASSWORD=geekpass
+      - POSTGRES_DB=geekreward_db
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - geekreward-net
+
+networks:
+  geekreward-net:
+    driver: bridge
+
+volumes:
+  db-data:

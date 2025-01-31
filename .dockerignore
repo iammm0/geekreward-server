@@ -1,0 +1,32 @@
+# .dockerignore
+
+# 忽略 Git 相关文件
+.git
+.gitignore
+
+# 忽略 IDEA 配置
+.idea
+
+# 忽略 Node_modules
+main/frontend/node_modules
+
+# 忽略构建产物
+main/backend/geekreward
+main/frontend/dist
+
+# 忽略本地配置文件
+main/backend/.env
+config.yaml
+main/backend/app.log
+
+# 忽略测试文件
+test/
+
+# 忽略上传文件
+main/backend/uploads/
+
+# 忽略操作系统生成的文件
+*.log
+*.md
+Thumbs.db
+.DS_Store
