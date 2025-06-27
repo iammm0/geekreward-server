@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/geekreward-logo.png" alt="GeekReward Logo" width="200" />
+  <img src="./assets/geekreward.png" alt="GeekReward Logo" width="200" />
 </p>
 
 # GeekReward
